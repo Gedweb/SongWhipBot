@@ -28,7 +28,7 @@ async fn main() {
 
     teloxide::repl(bot, |message| async move {
         if let Some(text) = message.update.text() {
-            if !(text.starts_with("http") || ACCEPTABLE_LINKS.iter().find(|x| text.contains(*x)).is_none()) {
+            if !text.starts_with("http") || ACCEPTABLE_LINKS.iter().find(|x| text.contains(*x)).is_none() {
                 return respond(());
             }
 
@@ -58,6 +58,10 @@ async fn send<T: ToString>(url: T)
             url: url.to_string(),
         })
         .send().await?;
+
+    if response.status() != reqwest::StatusCode::OK {
+        log::warn!("{} {}", response.status(), url.to_string())
+    }
 
     response.json::<dto::SoundWhipResponse>().await
 }
