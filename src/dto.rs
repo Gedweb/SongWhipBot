@@ -7,12 +7,12 @@ pub struct SoundWhipRequest {
 
 #[derive(Deserialize, Debug)]
 pub struct SoundWhipResponse {
-    name : String,
-    artists: Vec<Artist>,
-    url: String,
+    pub name : String,
+    pub artists: Vec<Artist>,
+    pub url: String,
 }
 
 #[derive(Deserialize, Debug)]
 pub struct Artist {
-    name: String,
+    pub name: String,
 }
