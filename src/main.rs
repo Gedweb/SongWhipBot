@@ -1,10 +1,14 @@
 #![feature(async_closure)]
 
-mod dto;
-
 use reqwest;
-
 use teloxide::prelude::*;
+
+#[macro_use]
+extern crate lazy_static;
+
+use regex::Regex;
+
+mod dto;
 
 const ACCEPTABLE_LINKS: [&str; 10] = [
     "amazon",
@@ -19,6 +23,15 @@ const ACCEPTABLE_LINKS: [&str; 10] = [
     "youtube",
 ];
 
+fn extract_url(text: &str) -> Option<&str> {
+    lazy_static! {
+        static ref RE: Regex = Regex::new(
+            r"(https?://)?(www\.)?([-\p{Alphabetic}\d]+\.)+([a-z]{2,63})/[-\p{Alphabetic}\d._~:/?#\[\]@!$&'()*+,;=%]+"
+        ).expect("url extract regexp");
+    }
+    RE.find(text).map(|url| url.as_str())
+}
+
 #[tokio::main]
 async fn main() {
     teloxide::enable_logging!();
@@ -27,15 +40,16 @@ async fn main() {
     let bot = Bot::from_env().auto_send();
 
     teloxide::repl(bot, |message| async move {
-        if let Some(text) = message.update.text() {
-            if !text.starts_with("http") || ACCEPTABLE_LINKS.iter().find(|x| text.contains(*x)).is_none() {
+        if let Some(url) = message.update.text().and_then(|text| extract_url(text)) {
+
+            if ACCEPTABLE_LINKS.iter().find(|x| url.contains(*x)).is_none() {
                 return respond(());
             }
 
-            if let Ok(response) = send(text).await {
+            if let Ok(response) = send(url).await {
                 let formatted = format!(
                     "{} - {}\n{}",
-                    response.artists.iter().map(|a| a.name.as_str()).collect::<Vec<_>>().join(" "),
+                    response.artists.iter().map(|a| a.name.as_str()).collect::<Vec<_>>().join(" & "),
                     response.name,
                     response.url,
                 );
@@ -44,13 +58,10 @@ async fn main() {
             }
         }
         respond(())
-    })
-        .await;
+    }).await;
 }
 
-
-async fn send<T: ToString>(url: T)
-                           -> reqwest::Result<dto::SoundWhipResponse>
+async fn send<T: ToString>(url: T) -> reqwest::Result<dto::SoundWhipResponse>
 {
     let client = reqwest::Client::new();
     let response = client.post("https://songwhip.com/")
