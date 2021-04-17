@@ -7,20 +7,22 @@ use teloxide::prelude::*;
 extern crate lazy_static;
 
 use regex::Regex;
+use std::sync::Arc;
 
 mod dto;
 
-const ACCEPTABLE_LINKS: [&str; 10] = [
-    "amazon",
-    "deezer",
-    "itunes",
-    "napster",
-    "pandora",
-    "soundcloud",
-    "spotify",
-    "tidal",
-    "yandex",
-    "youtube",
+const ACCEPTABLE_LINKS: [&str; 11] = [
+    "music.amazon.com",
+    "deezer.com",
+    "music.apple",
+    "napster.com",
+    "pandora.com",
+    "soundcloud.com",
+    "spotify.com",
+    "tidal.com",
+    "music.yandex.ru",
+    "youtube.com",
+    "youtu.be",
 ];
 
 fn extract_url(text: &str) -> Option<&str> {
@@ -37,25 +39,25 @@ async fn main() {
     teloxide::enable_logging!();
     log::info!("Starting SoundWhip bot...");
 
-    let bot = Bot::from_env().auto_send();
+    let bot = Arc::new(Bot::from_env().auto_send());
 
-    teloxide::repl(bot, |message| async move {
+    teloxide::repl(bot.clone(), async move |message| {
         if let Some(url) = message.update.text().and_then(|text| extract_url(text)) {
-
             if ACCEPTABLE_LINKS.iter().find(|x| url.contains(*x)).is_none() {
                 return respond(());
             }
 
+            let mut reply_text = "not found 😕".to_string();
             if let Ok(response) = send(url).await {
-                let formatted = format!(
+                reply_text = format!(
                     "{} - {}\n{}",
                     response.artists.iter().map(|a| a.name.as_str()).collect::<Vec<_>>().join(" & "),
                     response.name,
                     response.url,
                 );
-
-                message.reply_to(formatted).await?;
             }
+
+            message.reply_to(reply_text).await?;
         }
         respond(())
     }).await;
