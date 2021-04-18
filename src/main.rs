@@ -8,16 +8,18 @@ extern crate lazy_static;
 
 use regex::Regex;
 use std::sync::Arc;
+use teloxide::types::ChatAction;
 
 mod dto;
 
-const ACCEPTABLE_LINKS: [&str; 11] = [
+const ACCEPTABLE_LINKS: [&str; 12] = [
     "music.amazon.com",
     "deezer.com",
     "music.apple",
     "napster.com",
     "pandora.com",
     "soundcloud.com",
+    "soundcloud.app.goo.gl",
     "spotify.com",
     "tidal.com",
     "music.yandex.ru",
@@ -43,19 +45,22 @@ async fn main() {
 
     teloxide::repl(bot.clone(), async move |message| {
         if let Some(url) = message.update.text().and_then(|text| extract_url(text)) {
+
             if ACCEPTABLE_LINKS.iter().find(|x| url.contains(*x)).is_none() {
                 return respond(());
             }
 
-            let mut reply_text = "not found 😕".to_string();
-            if let Ok(response) = send(url).await {
-                reply_text = format!(
+            message.requester.send_chat_action(message.chat_id(), ChatAction::Typing).await;
+            let reply_text = match request_songwhip(url).await {
+                Ok(dto::SoundWhipResponse { links: x, .. }) if x.len() < 2 => "no more links found".to_owned(),
+                Ok(response) => format!(
                     "{} - {}\n{}",
                     response.artists.iter().map(|a| a.name.as_str()).collect::<Vec<_>>().join(" & "),
                     response.name,
                     response.url,
-                );
-            }
+                ),
+                _ => "not found 😕".to_owned(),
+            };
 
             message.reply_to(reply_text).await?;
         }
@@ -63,7 +68,7 @@ async fn main() {
     }).await;
 }
 
-async fn send<T: ToString>(url: T) -> reqwest::Result<dto::SoundWhipResponse>
+async fn request_songwhip<T: ToString>(url: T) -> reqwest::Result<dto::SoundWhipResponse>
 {
     let client = reqwest::Client::new();
     let response = client.post("https://songwhip.com/")
