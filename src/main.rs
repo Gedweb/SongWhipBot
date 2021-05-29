@@ -12,17 +12,16 @@ use teloxide::types::ChatAction;
 
 mod dto;
 
-const ACCEPTABLE_LINKS: [&str; 12] = [
-    "music.amazon.com",
+const ACCEPTABLE_LINKS: [&str; 11] = [
+    "music.amazon",
     "deezer.com",
     "music.apple",
     "napster.com",
     "pandora.com",
-    "soundcloud.com",
-    "soundcloud.app.goo.gl",
+    "soundcloud",
     "spotify.com",
     "tidal.com",
-    "music.yandex.ru",
+    "music.yandex",
     "youtube.com",
     "youtu.be",
 ];
